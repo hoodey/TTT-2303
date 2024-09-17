@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public enum PlayerOption
 {
@@ -41,25 +42,29 @@ public class TTT : MonoBehaviour
 
     public void MakeOptimalMove()
     {
+        bool aCellChosen;
+
+        #region Look for winning cells
+        
+        aCellChosen = PlayWinningCell();
+
+        if (aCellChosen)
+            return;
+
+        aCellChosen = PlayBlockingCell();
+
+        if (aCellChosen)
+            return;
+        #endregion
+
         #region First Moves
 
-        //If going first put X in corner
-        for (int i =0; i < Rows; i++)
+        //If X goes corner
+        if (cells[0, 0].current == PlayerOption.X || cells[2,0].current == PlayerOption.X || cells[0,2].current == PlayerOption.X || cells[2,2].current == PlayerOption.X)
         {
-            for (int j= 0; j < Columns;j++)
+            if (cells[1, 1].current == PlayerOption.NONE)
             {
-                if (cells[j, i].current == PlayerOption.NONE)
-                {
-                    continue;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            if (cells[0,0].current == PlayerOption.NONE)
-            {
-                ChooseSpace(0, 0);
+                ChooseSpace(1, 1);
                 return;
             }
         }
@@ -74,8 +79,80 @@ public class TTT : MonoBehaviour
             }
         }
 
-        //If X goes corner
-        if (cells[0, 0].current == PlayerOption.X || cells[2,0].current == PlayerOption.X || cells[0,2].current == PlayerOption.X || cells[2,2].current == PlayerOption.X)
+        //If X goes side/top
+        if (cells[0,1].current == PlayerOption.X || cells[1,0].current == PlayerOption.X)
+        {
+            if (cells[2, 2].current == PlayerOption.NONE)
+            {
+                ChooseSpace(2, 2);
+                return;
+            }
+        }
+        else if (cells[1,2].current == PlayerOption.X || cells[2,1].current == PlayerOption.X)
+        {
+            if (cells[0, 0].current == PlayerOption.NONE)
+            {
+                ChooseSpace(0, 0);
+                return;
+            }
+        }
+
+        //If going first put X in the corner
+        for (int i =0; i < Rows; i++)
+        {
+            bool broke = false;
+            for (int j= 0; j < Columns;j++)
+            {
+                if (cells[j, i].current == PlayerOption.NONE)
+                {
+                    continue;
+                }
+                else
+                {
+                    broke = true;
+                    break;
+                }
+            }
+            if (broke)
+                break;
+
+            if (cells[0,0].current == PlayerOption.NONE && i == 2)
+            {
+                ChooseSpace(0, 0);
+                return;
+            }
+        }
+
+
+        #endregion
+
+        #region Second Move
+        //Cases for X choosing a cross configuration
+        if (cells[1,2].current == PlayerOption.X && cells[2,1].current == PlayerOption.X)
+        {
+            if (cells[1,1].current == PlayerOption.NONE)
+            {
+                ChooseSpace(1, 1);
+                return;
+            }
+        }
+        if (cells[1, 2].current == PlayerOption.X && cells[0, 1].current == PlayerOption.X)
+        {
+            if (cells[1, 1].current == PlayerOption.NONE)
+            {
+                ChooseSpace(1, 1);
+                return;
+            }
+        }
+        if (cells[1, 0].current == PlayerOption.X && cells[0, 1].current == PlayerOption.X)
+        {
+            if (cells[1, 1].current == PlayerOption.NONE)
+            {
+                ChooseSpace(1, 1);
+                return;
+            }
+        }
+        if (cells[1, 0].current == PlayerOption.X && cells[2, 1].current == PlayerOption.X)
         {
             if (cells[1, 1].current == PlayerOption.NONE)
             {
@@ -84,27 +161,51 @@ public class TTT : MonoBehaviour
             }
         }
 
-        //If X goes side/top
-        if (cells[0,1].current == PlayerOption.X || cells[1,0].current == PlayerOption.X)
+        //Cases if X has gone in a corner for their second move
+        if (cells[2,2].current == PlayerOption.X)
         {
-            if (cells[0, 0].current == PlayerOption.NONE)
+            if (cells[1, 2].current == PlayerOption.NONE && currentPlayer == PlayerOption.O)
             {
-                ChooseSpace(0, 0);
+                ChooseSpace(1, 2);
+                return;
+            }
+        }   
+        if (cells[0,2].current == PlayerOption.X)
+        {
+            if (cells[1,2].current == PlayerOption.NONE && currentPlayer == PlayerOption.O)
+            {
+                ChooseSpace(1, 2);
                 return;
             }
         }
-        else if (cells[1,2].current == PlayerOption.X || cells[2,1].current == PlayerOption.X)
+
+        //Option for O in middle and X second move
+        if (cells[1,1].current == PlayerOption.O)
         {
-            if (cells[2, 2].current == PlayerOption.NONE)
+            if (cells[2,2].current == PlayerOption.NONE && cells[0,0].current == PlayerOption.X)
             {
                 ChooseSpace(2, 2);
+                return;
+            }
+            else if (cells[2, 0].current == PlayerOption.NONE && cells[0, 2].current == PlayerOption.X)
+            {
+                ChooseSpace(2, 0);
+                return;
+            }
+            else if (cells[0, 2].current == PlayerOption.NONE && cells[2, 0].current == PlayerOption.X)
+            {
+                ChooseSpace(0, 2);
                 return;
             }
         }
 
         #endregion
 
-        PlayWinningCell();
+        #region Pick first available
+
+        PickFirstAvailable();
+
+        #endregion
 
     }
 
@@ -129,6 +230,7 @@ public class TTT : MonoBehaviour
             EndTurn();
         else
         {
+            Debug.Log("Player " + currentPlayer + " won!");
             Debug.Log("GAME OVER!");
         }
     }
@@ -142,12 +244,32 @@ public class TTT : MonoBehaviour
         UpdatePlayerTurnText();
     }
 
+    public void RestartGame()
+    {
+        SceneManager.LoadScene("TTT");
+    }
+
     public void UpdatePlayerTurnText()
     {
         text.text = "Player's Turn: " + currentPlayer;
     }
 
-    public void PlayWinningCell()
+    public void PickFirstAvailable()
+    {
+        for (int i = 0; i < Rows; i++)
+        {
+            for (int j = 0;  j < Columns; j++)
+            {
+                if (cells[j, i].current == PlayerOption.NONE)
+                {
+                    ChooseSpace(j, i);
+                    return;
+                }
+            }
+        }
+    }
+
+    public bool PlayWinningCell()
     {
         int sum = 0;
         int num1 = 0;
@@ -174,12 +296,16 @@ public class TTT : MonoBehaviour
                 sum += value;
             }
 
-            if (sum == 2)
+            if (sum == 2 && currentPlayer == PlayerOption.X)
             {
                 ChooseSpace(num1, num2);
+                return true;
             }
-            else if (sum == -2)
+            else if (sum == -2 && currentPlayer == PlayerOption.O)
+            {
                 ChooseSpace(num1, num2);
+                return true;
+            }
 
         }
 
@@ -203,10 +329,16 @@ public class TTT : MonoBehaviour
                 sum += value;
             }
 
-            if (sum == 2)
+            if (sum == 2 && currentPlayer == PlayerOption.X)
+            {
                 ChooseSpace(num1, num2);
-            else if (sum == -2)
+                return true;
+            }
+            else if (sum == -2 && currentPlayer == PlayerOption.O)
+            {
                 ChooseSpace(num1, num2);
+                return true;
+            }
 
         }
 
@@ -229,10 +361,17 @@ public class TTT : MonoBehaviour
             sum += value;
         }
 
-        if (sum == 2)
+        if (sum == 2 && currentPlayer == PlayerOption.X)
+        {
             ChooseSpace(num1, num2);
-        else if (sum == -2)
+            return true;
+        }
+        
+        else if (sum == -2 && currentPlayer == PlayerOption.O)
+        {
             ChooseSpace(num1, num2);
+            return true;
+        }
 
         // top right to bottom left
         sum = 0;
@@ -253,12 +392,161 @@ public class TTT : MonoBehaviour
             sum += value;
         }
 
-        if (sum == 2)
+        if (sum == 2 && currentPlayer == PlayerOption.X)
+        {
             ChooseSpace(num1, num2);
-        else if (sum == -3)
+            return true;
+        }
+        else if (sum == -2 && currentPlayer == PlayerOption.O)
+        {
             ChooseSpace(num1, num2);
+            return true;
+        }
+        else
+        {
+            Debug.Log("We found no winning squares.");
+            return false;
+        }
+    }
 
-        Debug.Log("We found no winning squares.");
+    public bool PlayBlockingCell()
+    {
+        int sum = 0;
+        int num1 = 0;
+        int num2 = 0;
+
+        // check rows
+        for (int i = 0; i < Rows; i++)
+        {
+            sum = 0;
+            for (int j = 0; j < Columns; j++)
+            {
+                var value = 0;
+                if (cells[j, i].current == PlayerOption.X)
+                    value = 1;
+                else if (cells[j, i].current == PlayerOption.O)
+                    value = -1;
+                else if (cells[j, i].current == PlayerOption.NONE)
+                {
+                    num1 = j;
+                    num2 = i;
+                }
+
+
+                sum += value;
+            }
+
+            if (sum == 2 && currentPlayer == PlayerOption.O)
+            {
+                ChooseSpace(num1, num2);
+                return true;
+            }
+            else if (sum == -2 && currentPlayer == PlayerOption.X)
+            {
+                ChooseSpace(num1, num2);
+                return true;
+            }
+
+        }
+
+        // check columns
+        for (int j = 0; j < Columns; j++)
+        {
+            sum = 0;
+            for (int i = 0; i < Rows; i++)
+            {
+                var value = 0;
+                if (cells[j, i].current == PlayerOption.X)
+                    value = 1;
+                else if (cells[j, i].current == PlayerOption.O)
+                    value = -1;
+                else if (cells[j, i].current == PlayerOption.NONE)
+                {
+                    num1 = j;
+                    num2 = i;
+                }
+
+                sum += value;
+            }
+
+            if (sum == 2 && currentPlayer == PlayerOption.O)
+            {
+                ChooseSpace(num1, num2);
+                return true;
+            }
+            else if (sum == -2 && currentPlayer == PlayerOption.X)
+            {
+                ChooseSpace(num1, num2);
+                return true;
+            }
+
+        }
+
+        // check diagonals
+        // top left to bottom right
+        sum = 0;
+        for (int i = 0; i < Rows; i++)
+        {
+            int value = 0;
+            if (cells[i, i].current == PlayerOption.X)
+                value = 1;
+            else if (cells[i, i].current == PlayerOption.O)
+                value = -1;
+            else if (cells[i, i].current == PlayerOption.NONE)
+            {
+                num1 = i;
+                num2 = i;
+            }
+
+            sum += value;
+        }
+
+        if (sum == 2 && currentPlayer == PlayerOption.O)
+        {
+            ChooseSpace(num1, num2);
+            return true;
+        }
+
+        else if (sum == -2 && currentPlayer == PlayerOption.X)
+        {
+            ChooseSpace(num1, num2);
+            return true;
+        }
+
+        // top right to bottom left
+        sum = 0;
+        for (int i = 0; i < Rows; i++)
+        {
+            int value = 0;
+
+            if (cells[Columns - 1 - i, i].current == PlayerOption.X)
+                value = 1;
+            else if (cells[Columns - 1 - i, i].current == PlayerOption.O)
+                value = -1;
+            else if (cells[Columns - 1 - i, i].current == PlayerOption.NONE)
+            {
+                num1 = Columns - 1 - i;
+                num2 = i;
+            }
+
+            sum += value;
+        }
+
+        if (sum == 2 && currentPlayer == PlayerOption.O)
+        {
+            ChooseSpace(num1, num2);
+            return true;
+        }
+        else if (sum == -2 && currentPlayer == PlayerOption.X)
+        {
+            ChooseSpace(num1, num2);
+            return true;
+        }
+        else
+        {
+            Debug.Log("We found no blocking squares.");
+            return false;
+        }
     }
 
     public PlayerOption GetWinner()
